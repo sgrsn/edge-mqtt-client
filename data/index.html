@@ -1,0 +1,65 @@
+<!-- data/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Debug Console</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        #console {
+            background: #000000;
+            padding: 10px;
+            border-radius: 5px;
+            height: 1000px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 30px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            border-bottom: 1px solid #333;
+            padding: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Debug Console</h1>
+    <div id="console"></div>
+
+    <script>
+        const console = document.getElementById('console');
+        let lastCheck = 0;
+
+        function appendMessage(message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = message;
+            console.appendChild(entry);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        async function fetchMessages() {
+            try {
+                const response = await fetch('/messages');
+                const text = await response.text();
+                if (text.trim()) {
+                    text.split('\n').forEach(line => {
+                        if (line.trim()) {
+                            appendMessage(line);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+            }
+        }
+
+        // 定期的にメッセージを取得
+        setInterval(fetchMessages, 500);
+    </script>
+</body>
+</html>
