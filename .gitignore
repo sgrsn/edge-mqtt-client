@@ -1,4 +1,4 @@
 .pio
-inclue/secrets.h
+include/secret.h
 lib/
 test/
