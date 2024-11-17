@@ -9,7 +9,7 @@
 #include <any>
 
 // Serial.println()の代わり
-#include "print_server.hpp"
+#include <PrintServer.h>
 DumpServer debug;
 
 // 対応する型を列挙型で定義
