@@ -118,21 +118,21 @@ public:
 
     // Network setup
     if (!modem_.waitForNetwork()) {
-      delay(10000);
+      delay(2000);
       return;
     }
     if (!modem_.isNetworkConnected()) {
-      delay(10000);
+      delay(2000);
       return;
     }
 
     // GPRS connection parameters are usually set after network registration
     if (!modem_.gprsConnect(apn.c_str(), gprsUser.c_str(), gprsPass.c_str())) {
-      delay(10000);
+      delay(2000);
       return;
     }
     if (!modem_.isGprsConnected()) { 
-      delay(10000);
+      delay(2000);
       return;
     }
 
@@ -224,6 +224,18 @@ public:
       return false;
     }
     value = it->second.raw_data;
+    return true;
+  }
+
+  bool getLastValue(const std::string& topic_name, bool& value)
+  {
+    auto it = topics_.find(topic_name);
+    if (it == topics_.end()) {
+      // throw std::runtime_error("Topic not registered: " + topic_name);
+      debug.println("Topic not registered: ", topic_name.c_str());
+      return false;
+    }
+    value = stringToBool(it->second.raw_data);
     return true;
   }
     
