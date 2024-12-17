@@ -271,4 +271,9 @@ public:
     }
     return mqtt_.connected();
   }
+
+  boolean publish(const std::string& topic_name, std::string value)
+  {
+    return mqtt_.publish(topic_name.c_str(), value.c_str());
+  }
 };

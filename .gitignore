@@ -3,3 +3,4 @@ include/secret.h
 lib/
 test/
 data/
+.vscode/
