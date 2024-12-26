@@ -9,8 +9,9 @@
 #include <any>
 
 // Serial.println()の代わり
-#include <PrintServer.h>
-DumpServer debug;
+//#include <PrintServer.h>
+//DumpServer debug;
+#define debug Serial
 
 // 対応する型を列挙型で定義
 enum class ValueType {
@@ -33,7 +34,7 @@ static std::unordered_map<std::string, TopicData> topics_;
 
 class MqttClient {
 private:
-  HardwareSerial serial_;
+  // HardwareSerial serial_;
   TinyGsm        modem_;
   TinyGsmClient client_;
   PubSubClient  mqtt_;
@@ -95,20 +96,20 @@ private:
   }
 
 public:
-  MqttClient(const std::string& apn, const std::string& gprsUser, const std::string& gprsPass, const char* broker, uint16_t port, const char* clientId, const char* username, const char* password)
-    : serial_(0), modem_(serial_), client_(modem_), mqtt_(client_), apn(apn), gprsUser(gprsUser), gprsPass(gprsPass), broker(broker), port(port), clientId(clientId), username(username), password(password) {}
+  MqttClient(Stream& serial, const std::string& apn, const std::string& gprsUser, const std::string& gprsPass, const char* broker, uint16_t port, const char* clientId, const char* username, const char* password)
+    : modem_(serial), client_(modem_), mqtt_(client_), apn(apn), gprsUser(gprsUser), gprsPass(gprsPass), broker(broker), port(port), clientId(clientId), username(username), password(password) {}
 
   void init()
   {
-    serial_.begin(115200, SERIAL_8N1, RX, TX);
+    // serial_.begin(115200, SERIAL_8N1, RX, TX);
 
-    WiFi.softAP("MyESP32", "12345678");
-    debug.begin();
+    // WiFi.softAP("MyESP32", "12345678");
+    // debug.begin();
 
     debug.println("Initializing modem...");
 
     // Serial setup
-    serial_.begin(115200, SERIAL_8N1, RX, TX);
+    // serial_.begin(115200, SERIAL_8N1, RX, TX);
     delay(1000);
 
     // Modem setup
@@ -195,7 +196,9 @@ public:
     }
     else {
       // throw std::runtime_error("Unsupported type for topic: " + topic_name);
-      debug.println("Unsupported type for topic: " + topic_name);
+      // debug.println("Unsupported type for topic: " + topic_name);
+      debug.print("Unsupported type for topic: ");
+      debug.println(topic_name.c_str());
     }
     // mqtt_.subscribe(topic_name.c_str());
     topics_[topic_name] = data;
@@ -207,7 +210,9 @@ public:
     
     if (it == topics_.end()) {
       // throw std::runtime_error("Topic not registered: " + topic_name);
-      debug.println("Topic not registered: ", topic_name.c_str());
+      // debug.println("Topic not registered: ", topic_name.c_str());
+      debug.print("Topic not registered: ");
+      debug.println(topic_name.c_str());
       return false;
     }
 
@@ -220,7 +225,9 @@ public:
     auto it = topics_.find(topic_name);
     if (it == topics_.end()) {
       // throw std::runtime_error("Topic not registered: " + topic_name);
-      debug.println("Topic not registered: ", topic_name.c_str());
+      // debug.println("Topic not registered: ", topic_name.c_str());
+      debug.print("Topic not registered: ");
+      debug.println(topic_name.c_str());
       return false;
     }
     value = it->second.raw_data;
@@ -232,7 +239,9 @@ public:
     auto it = topics_.find(topic_name);
     if (it == topics_.end()) {
       // throw std::runtime_error("Topic not registered: " + topic_name);
-      debug.println("Topic not registered: ", topic_name.c_str());
+      // debug.println("Topic not registered: ", topic_name.c_str());
+      debug.print("Topic not registered: ");
+      debug.println(topic_name.c_str());
       return false;
     }
     value = stringToBool(it->second.raw_data);
