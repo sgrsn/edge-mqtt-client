@@ -117,6 +117,9 @@ public:
     delay(1000);
     String modemInfo = modem_.getModemInfo();
 
+    debug.print("Modem: ");
+    debug.println(modemInfo);
+
     // Network setup
     if (!modem_.waitForNetwork()) {
       delay(2000);
@@ -146,6 +149,7 @@ public:
 
   void mqttLoop()
   {
+    debug.println(millis());
     // Make sure we're still registered on the network
     if (!modem_.isNetworkConnected()) {
       if (!modem_.waitForNetwork(180000L, true)) {

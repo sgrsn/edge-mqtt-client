@@ -11,9 +11,9 @@
 
 MqttClient mqtt(Serial1, APN, GPRS_USER, GPRS_PASS, BROKER, PORT, CLIENT_ID, USERNAME, PASSWORD);
 
-const uint32_t WATCHDOG_RATE_US = 500000;
+const uint32_t WATCHDOG_RATE_US = 1000;
 const uint32_t MONITORING_RATE_US = 1000000;
-const uint32_t MQTT_RATE_US = 10000;
+const uint32_t MQTT_RATE_US = 100000;
 const uint32_t CONTROL_RATE_US = 50000;
 
 IntervalTimer timer_watchdog;
@@ -88,21 +88,21 @@ static void Control()
 void initializeTimer()
 {
   timer_watchdog.begin(HeartbeatTimer, WATCHDOG_RATE_US);
-  timer_monitoring.begin(MonitoringTimer, MONITORING_RATE_US);
+  //timer_monitoring.begin(MonitoringTimer, MONITORING_RATE_US);
   timer_mqtt_loop.begin(MqttLoop, MQTT_RATE_US);
-  timer_control.begin(Control, CONTROL_RATE_US);
+  //timer_control.begin(Control, CONTROL_RATE_US);
 }
 
 void setup() {
-  Serial1.begin(115200);
+  Serial1.begin(3000000);
   debug.begin(115200);
   debug.println("(setup) start");
   mqtt.init();
-  mqtt.registerTopic<std::string>("esp/watchdog/heartbeat");
-  mqtt.registerTopic<bool>("control/startStop");
-  mqtt.registerTopic<std::string>("control/slider");
-  mqtt.registerTopic<double>("control/joystick/x");
-  mqtt.registerTopic<double>("control/joystick/y");
+  //mqtt.registerTopic<std::string>("esp/watchdog/heartbeat");
+  //mqtt.registerTopic<bool>("control/startStop");
+  //mqtt.registerTopic<std::string>("control/slider");
+  //mqtt.registerTopic<double>("control/joystick/x");
+  //mqtt.registerTopic<double>("control/joystick/y");
   initializeTimer();
   debug.println("(setup) end");
 }
