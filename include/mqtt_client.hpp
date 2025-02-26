@@ -120,6 +120,11 @@ public:
     debug.print("Modem: ");
     debug.println(modemInfo);
 
+    // Set modem baud rate and UART pins if you need
+    // modem_.setBaud(115200);
+    // debug.println("Modem baud rate set to 115200");
+    // while(1);
+
     // Network setup
     if (!modem_.waitForNetwork()) {
       delay(2000);
@@ -149,7 +154,6 @@ public:
 
   void mqttLoop()
   {
-    debug.println(millis());
     // Make sure we're still registered on the network
     if (!modem_.isNetworkConnected()) {
       if (!modem_.waitForNetwork(180000L, true)) {
