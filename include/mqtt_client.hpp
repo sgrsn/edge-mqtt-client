@@ -8,24 +8,12 @@
 #include <iostream>
 #include <any>
 
-// Serial.println()の代わり
-//#include <PrintServer.h>
-//DumpServer debug;
 #define debug Serial
-
-// 対応する型を列挙型で定義
-enum class ValueType {
-  Bool,
-  Double,
-  Int,
-  String
-};
 
 // トピック名と最後の値を保持する構造体
 struct TopicData {
   std::string raw_data;
   std::any value;
-  ValueType type;
   std::function<std::any(const std::string&)> converter;
 };
 
@@ -74,25 +62,39 @@ private:
     return std::stoi(str);
   }
 
-  // 型に応じたValueTypeを返すテンプレート関数
+  static uint32_t stringToUint32(const std::string& str) {
+    if (str.empty()) {
+      return 0;
+    }
+    return std::stoul(str);
+  }
+
+  static uint64_t stringToUint64(const std::string& str) {
+    if (str.empty()) {
+      return 0;
+    }
+    return std::stoull(str);
+  }
+
+  // 型のサポート確認を行うテンプレート関数
   template<typename T>
-  static ValueType getValueType() {
-    if constexpr (std::is_same_v<T, bool>) {
-      return ValueType::Bool;
+  static bool isSupportedType() {
+    return std::is_same_v<T, bool> ||
+           std::is_same_v<T, double> ||
+           std::is_same_v<T, int> ||
+            std::is_same_v<T, uint32_t> ||
+            std::is_same_v<T, uint64_t> ||
+           std::is_same_v<T, std::string>;
+  }
+
+  // トピックの検証と未登録チェックを行うヘルパー関数
+  auto findTopic(const std::string& topic_name) {
+    auto it = topics_.find(topic_name);
+    if (it == topics_.end()) {
+      debug.print("Topic not registered: ");
+      debug.println(topic_name.c_str());
     }
-    else if constexpr (std::is_same_v<T, double>) {
-      return ValueType::Double;
-    }
-    else if constexpr (std::is_same_v<T, int>) {
-      return ValueType::Int;
-    }
-    else if constexpr (std::is_same_v<T, std::string>) {
-      return ValueType::String;
-    }
-    else {
-      // static_assert(always_false<T>::value, "Unsupported type");
-      return ValueType::String;
-    }
+    return it;
   }
 
 public:
@@ -110,11 +112,10 @@ public:
 
     // Serial setup
     // serial_.begin(115200, SERIAL_8N1, RX, TX);
-    delay(1000);
 
     // Modem setup
     modem_.restart();
-    delay(1000);
+    delay(100);
     String modemInfo = modem_.getModemInfo();
 
     debug.print("Modem: ");
@@ -156,6 +157,7 @@ public:
   {
     // Make sure we're still registered on the network
     if (!modem_.isNetworkConnected()) {
+      debug.println("Network disconnected");
       if (!modem_.waitForNetwork(180000L, true)) {
         delay(10000);
         return;
@@ -163,6 +165,7 @@ public:
 
       // and make sure GPRS/EPS is still connected
       if (!modem_.isGprsConnected()) {
+        debug.println("GPRS disconnected");
         if (!modem_.gprsConnect(apn.c_str(), gprsUser.c_str(), gprsPass.c_str())) {
           delay(10000);
           return;
@@ -171,6 +174,7 @@ public:
     }
 
     if (!mqtt_.connected()) {
+      debug.println("MQTT disconnected");
       uint32_t t = millis();
       if (t - lastReconnectAttempt > 10000L) {
         lastReconnectAttempt = t;
@@ -185,10 +189,18 @@ public:
 
   template<typename T>
   void registerTopic(const std::string& topic_name) {
+    // static_assert(isSupportedType<T>(), "Unsupported type for MQTT topic");
+
+    if (!isSupportedType<T>()) {
+      debug.print("Unsupported type for MQTT topic: ");
+      debug.println(topic_name.c_str());
+      return;
+    }
+    
     TopicData data;
-    data.type = getValueType<T>();
     data.raw_data = "";
     data.value = std::any();
+    
     // 型に応じた変換関数を設定
     if constexpr (std::is_same_v<T, bool>) {
       data.converter = [](const std::string& s) { return std::any(stringToBool(s)); };
@@ -199,60 +211,38 @@ public:
     else if constexpr (std::is_same_v<T, int>) {
       data.converter = [](const std::string& s) { return std::any(stringToInt(s)); };
     }
+    else if constexpr (std::is_same_v<T, uint32_t>) {
+      data.converter = [](const std::string& s) { return std::any(stringToUint32(s)); };
+    }
+    else if constexpr (std::is_same_v<T, uint64_t>) {
+      data.converter = [](const std::string& s) { return std::any(stringToUint64(s)); };
+    }
     else if constexpr (std::is_same_v<T, std::string>) {
       data.converter = [](const std::string& s) { return std::any(s); };
     }
-    else {
-      // throw std::runtime_error("Unsupported type for topic: " + topic_name);
-      // debug.println("Unsupported type for topic: " + topic_name);
-      debug.print("Unsupported type for topic: ");
-      debug.println(topic_name.c_str());
-    }
-    // mqtt_.subscribe(topic_name.c_str());
+    
     topics_[topic_name] = data;
   }
 
-  bool getLastValue(const std::string& topic_name, double& value) 
-  {
-    auto it = topics_.find(topic_name);
+  // テンプレート化したgetLastValue関数
+  template<typename T>
+  bool getLastValue(const std::string& topic_name, T& value) {
+    auto it = findTopic(topic_name);
+    if (it == topics_.end()) {
+      debug.print("Topic not registered: ");
+      debug.println(topic_name.c_str());
+      return false;
+    }
     
-    if (it == topics_.end()) {
-      // throw std::runtime_error("Topic not registered: " + topic_name);
-      // debug.println("Topic not registered: ", topic_name.c_str());
-      debug.print("Topic not registered: ");
-      debug.println(topic_name.c_str());
+    if (it->second.raw_data.empty()) {
       return false;
     }
-
-    value = stringToDouble(it->second.raw_data);
-    return true;
-  }
-
-  bool getLastValue(const std::string& topic_name, std::string& value)
-  {
-    auto it = topics_.find(topic_name);
-    if (it == topics_.end()) {
-      // throw std::runtime_error("Topic not registered: " + topic_name);
-      // debug.println("Topic not registered: ", topic_name.c_str());
-      debug.print("Topic not registered: ");
-      debug.println(topic_name.c_str());
-      return false;
+    else
+    {
+      it->second.value = it->second.converter(it->second.raw_data);
+      value = std::any_cast<T>(it->second.value);
     }
-    value = it->second.raw_data;
-    return true;
-  }
-
-  bool getLastValue(const std::string& topic_name, bool& value)
-  {
-    auto it = topics_.find(topic_name);
-    if (it == topics_.end()) {
-      // throw std::runtime_error("Topic not registered: " + topic_name);
-      // debug.println("Topic not registered: ", topic_name.c_str());
-      debug.print("Topic not registered: ");
-      debug.println(topic_name.c_str());
-      return false;
-    }
-    value = stringToBool(it->second.raw_data);
+    
     return true;
   }
     
@@ -263,22 +253,12 @@ public:
     if (it == topics_.end()) {
       return; // 未登録のトピックは無視
     }
-    
     // ペイロードを文字列に変換
     std::string payload_str(reinterpret_cast<char*>(payload), len);
-
     it->second.raw_data = payload_str;
-    
-    // 登録された変換関数を使用して値を変換し保存
-    try {
-      it->second.value = it->second.converter(payload_str);
-    } catch (const std::exception& e) {
-      // pass
-    }
   }
 
-  boolean mqttConnect() 
-  {
+  boolean mqttConnect() {
     boolean status = mqtt_.connect(clientId, username, password);
     if (status == false) {
       return false;
@@ -289,8 +269,7 @@ public:
     return mqtt_.connected();
   }
 
-  boolean publish(const std::string& topic_name, std::string value)
-  {
+  boolean publish(const std::string& topic_name, const std::string& value) {
     return mqtt_.publish(topic_name.c_str(), value.c_str());
   }
 };

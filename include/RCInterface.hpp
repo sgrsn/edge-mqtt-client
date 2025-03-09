@@ -113,7 +113,7 @@ private:
 
     void writeMicroseconds(int pulse) {
         // pulseを0〜180度に変換
-        int angle = map(pulse, _minPulse, _maxPulse, 0, 180);
+        int angle = map(pulse, 544, 2400, 0, 180);
         _servo.write(angle);
     }
 };
