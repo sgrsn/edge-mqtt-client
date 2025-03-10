@@ -53,6 +53,14 @@ public:
     }
 
     /**
+     * @brief 最大加速度を設定
+     * @param accel 最大加速度 [速度/秒] (0〜100 の速度指令域)
+     */
+    void setAccel(float accel) {
+        _accel = accel;
+    }
+
+    /**
      * @brief 速度を0にする（停止）
      */
     void stop() {

@@ -13,7 +13,7 @@ const uint8_t ESC_PIN = 33;
 const uint8_t SERVO1_PIN = 36;
 const uint8_t SERVO2_PIN = 37;
 
-ESC     esc(ESC_PIN, 800, 2100, 20.0f);
+ESC     esc(ESC_PIN, 800, 2100, 50.0f);
 RCServo servo1(SERVO1_PIN, 60, 90, 120);
 RCServo servo2(SERVO2_PIN, 25, 75, 120);
 AS5600 as5600;
@@ -24,7 +24,7 @@ const float GEAR_RATIO = 7.0f;
 
 // Heartbeatを高頻度にするとスループットが下がるので注意
 const uint32_t MONITORING_RATE_US = 1000000;
-const uint32_t MQTT_RATE_US = 15000;
+const uint32_t MQTT_RATE_US = 1000;
 const uint32_t CONTROL_RATE_US = 50000;
 const uint32_t SENSOR_RATE_US = 1000;
 
@@ -45,6 +45,7 @@ static void EmergencyStop()
 {
   servo1.setPosition(0);
   servo2.setPosition(0);
+  esc.setAccel(100);
   esc.setSpeed(0);
   emergency_stop = true;
 }
@@ -149,8 +150,10 @@ static void Control()
   servo2.setPosition(y);
 
   if (startStop && !emergency_stop) {
+    esc.setAccel(50);
     esc.setSpeed((float)slider);
   } else {
+    esc.setAccel(100);
     esc.setSpeed(0);
   }
   esc.update();
