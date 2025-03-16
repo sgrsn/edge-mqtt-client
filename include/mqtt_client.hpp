@@ -103,46 +103,34 @@ public:
 
   void init()
   {
-    // serial_.begin(115200, SERIAL_8N1, RX, TX);
-
-    // WiFi.softAP("MyESP32", "12345678");
-    // debug.begin();
-
     debug.println("Initializing modem...");
-
-    // Serial setup
-    // serial_.begin(115200, SERIAL_8N1, RX, TX);
 
     // Modem setup
     modem_.restart();
-    delay(100);
+    vTaskDelay(pdMS_TO_TICKS(100));
     String modemInfo = modem_.getModemInfo();
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     debug.print("Modem: ");
     debug.println(modemInfo);
 
-    // Set modem baud rate and UART pins if you need
-    // modem_.setBaud(115200);
-    // debug.println("Modem baud rate set to 115200");
-    // while(1);
-
     // Network setup
     if (!modem_.waitForNetwork()) {
-      delay(2000);
+      vTaskDelay(pdMS_TO_TICKS(2000));
       return;
     }
     if (!modem_.isNetworkConnected()) {
-      delay(2000);
+      vTaskDelay(pdMS_TO_TICKS(2000));
       return;
     }
 
     // GPRS connection parameters are usually set after network registration
     if (!modem_.gprsConnect(apn.c_str(), gprsUser.c_str(), gprsPass.c_str())) {
-      delay(2000);
+      vTaskDelay(pdMS_TO_TICKS(2000));
       return;
     }
     if (!modem_.isGprsConnected()) { 
-      delay(2000);
+      vTaskDelay(pdMS_TO_TICKS(2000));
       return;
     }
 
@@ -159,7 +147,7 @@ public:
     if (!modem_.isNetworkConnected()) {
       debug.println("Network disconnected");
       if (!modem_.waitForNetwork(180000L, true)) {
-        delay(10000);
+        vTaskDelay(pdMS_TO_TICKS(10000));
         return;
       }
 
@@ -167,7 +155,7 @@ public:
       if (!modem_.isGprsConnected()) {
         debug.println("GPRS disconnected");
         if (!modem_.gprsConnect(apn.c_str(), gprsUser.c_str(), gprsPass.c_str())) {
-          delay(10000);
+          vTaskDelay(pdMS_TO_TICKS(10000));
           return;
         }
       }
@@ -180,10 +168,9 @@ public:
         lastReconnectAttempt = t;
         if (mqttConnect()) { lastReconnectAttempt = 0; }
       }
-      delay(100);
+      vTaskDelay(pdMS_TO_TICKS(100));
       return;
     }
-
     mqtt_.loop();
   }
 
