@@ -47,45 +47,43 @@ void MqtttLoopTask(void* pvParameters) {
   Serial.println("MqttLoop task starting...");
 
   for (;;) {
-    Serial.println("MqttLoop");
     // セマフォ
     if (xSemaphoreTake(mqttMutex, pdMS_TO_TICKS(10)) == pdTRUE) 
     {
       mqtt.mqttLoop();
       xSemaphoreGive(mqttMutex);
     }
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
 // モデムテストタスク
 void ModemTestTask(void* pvParameters) 
 {
-  // mqtt.registerTopic<uint64_t>("robot/heartbeat");
-  // mqtt.registerTopic<uint64_t>("watchdog/heartbeat");
-  mqtt.registerTopic<bool>("control/startStop");
-  mqtt.registerTopic<int>("control/slider");
-  mqtt.registerTopic<int>("control/joystick/x");
-  mqtt.registerTopic<int>("control/joystick/y");
+  mqtt.registerTopic<uint64_t>("robot/heartbeat");
+  uint64_t this_time = 0;
+
   vTaskDelay(pdMS_TO_TICKS(1000));
   mqtt.init();
   vTaskDelay(pdMS_TO_TICKS(1000));
 
   // xMqttLoopTaskHandleに通知
-  // xTaskNotify(xMqttLoopTaskHandle, 1, eNoAction);
+  xTaskNotify(xMqttLoopTaskHandle, 1, eNoAction);
 
-  bool startStop = false;
 
   while(true)
   {
     if (xSemaphoreTake(mqttMutex, pdMS_TO_TICKS(500)) == pdTRUE) 
     {
-      mqtt.getLastValue<bool>("control/startStop", startStop);
+      mqtt.publish("robot/heartbeat", std::to_string(millis()));
+      mqtt.getLastValue<uint64_t>("robot/heartbeat", this_time);
       xSemaphoreGive(mqttMutex);
     }
+
+    Serial.print("millis: ");
     Serial.print(millis());
-    Serial.print(" startStop: ");
-    Serial.println(startStop);
+    Serial.print(", receive: ");
+    Serial.println(this_time);
 
     mqtt.mqttLoop();
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -99,46 +97,27 @@ void setup() {
   Serial.println("Setup starting...");
 
   // キューの作成
-  serialRxQueue = xQueueCreate(SERIAL1_BUFFER_SIZE, sizeof(char));
-  if (serialRxQueue == NULL) {
-    Serial.println("Error: Failed to create serialRxQueue");
-    return;
-  }
-  
+  serialRxQueue = xQueueCreate(SERIAL1_BUFFER_SIZE, sizeof(char));  
   // セマフォの作成
   serialMutex = xSemaphoreCreateMutex();
-  if (serialMutex == NULL) {
-    Serial.println("Error: Failed to create serialMutex");
-    return;
-  }
-
   mqttMutex = xSemaphoreCreateMutex();
-
-  Serial.println("Creating SerialRx task...");
   // タスクの作成と開始
-  BaseType_t rxTask = xTaskCreate(SerialRxTask, "SerialRx", 1024, NULL, 1, NULL);
-  
-  if (rxTask != pdPASS) {
-      Serial.println("Error: Failed to create SerialRx task");
-      return;
-  }
+  BaseType_t rxTask = xTaskCreate(SerialRxTask, "SerialRx", 1024, NULL, 2, NULL);
+  BaseType_t mqttLoopTask = xTaskCreate(MqtttLoopTask, "MqttLoop", 1024, NULL, 1, &xMqttLoopTaskHandle);
+  BaseType_t modemTask = xTaskCreate(ModemTestTask, "ModemTest", 1024, NULL, 3, NULL);
 
-  // BaseType_t mqttLoopTask = xTaskCreate(MqtttLoopTask, "MqttLoop", 1024, NULL, 3, &xMqttLoopTaskHandle);
-  BaseType_t modemTask = xTaskCreate(ModemTestTask, "ModemTest", 1024, NULL, 2, NULL);
-
-  if (modemTask != pdPASS) {
-    Serial.println("Error: Failed to create ModemTest task");
+  if (modemTask != pdPASS || rxTask != pdPASS || mqttLoopTask != pdPASS || serialRxQueue == NULL || serialMutex == NULL || mqttMutex == NULL) {
+    Serial.println("Error: Failed to create tasks");
     return;
   }
-
 
   Serial.println("Starting FreeRTOS scheduler...");
   vTaskStartScheduler();
-  
   Serial.println("Error: Scheduler failed to start");
 }
 
 void loop() 
 {
   vTaskDelay(portMAX_DELAY);
+  Serial.println("Loop should not be here");
 }
