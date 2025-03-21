@@ -98,7 +98,7 @@ public:
   MqttClient(Stream& serial, const std::string& apn, const std::string& gprsUser, const std::string& gprsPass, const char* broker, uint16_t port, const char* clientId, const char* username, const char* password)
     : modem_(serial), client_(modem_), mqtt_(client_), apn(apn), gprsUser(gprsUser), gprsPass(gprsPass), broker(broker), port(port), clientId(clientId), username(username), password(password) {}
 
-  void init()
+  bool init()
   {
     // serial_.begin(115200, SERIAL_8N1, RX, TX);
 
@@ -126,21 +126,21 @@ public:
     // Network setup
     if (!modem_.waitForNetwork()) {
       delay(2000);
-      return;
+      return false;
     }
     if (!modem_.isNetworkConnected()) {
       delay(2000);
-      return;
+      return false;
     }
 
     // GPRS connection parameters are usually set after network registration
     if (!modem_.gprsConnect(apn.c_str(), gprsUser.c_str(), gprsPass.c_str())) {
       delay(2000);
-      return;
+      return false;
     }
     if (!modem_.isGprsConnected()) { 
       delay(2000);
-      return;
+      return false;
     }
 
     // MQTT Broker setup
@@ -148,6 +148,7 @@ public:
     mqtt_.setCallback(mqttCallback);
 
     debug.println("Setup completed");
+    return true;
   }
 
   void mqttLoop()
