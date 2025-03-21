@@ -10,32 +10,50 @@ HardwareSerial serial_(0);
 MqttClient mqtt(serial_, APN, GPRS_USER, GPRS_PASS, BROKER, PORT, CLIENT_ID, USERNAME, PASSWORD);
 I2CSlave i2cSlave;
 
+// 頻度
+const uint16_t WATCHDOG_INTERVAL = 800;
+const uint16_t WATCHDOG_TIMEOUT = 2000;
+
 void setup() {
   serial_.begin(115200, SERIAL_8N1, RX, TX);
   WiFi.softAP("MyESP32", "12345678");
   debug.begin();
   debug.println("(setup)", "start");
-  mqtt.init();
-  mqtt.registerTopic<std::string>("esp/watchdog/heartbeat");
+  bool modem_status = false;
+  while (!modem_status)
+  {
+    modem_status = mqtt.init();
+    i2cSlave.setRegister(MODEM_STATUS_REG,    modem_status);
+    delay(1000);
+  }
+  mqtt.registerTopic<uint64_t>("robot/heartbeat");
   mqtt.registerTopic<bool>("control/startStop");
-  mqtt.registerTopic<std::string>("control/slider");
-  mqtt.registerTopic<double>("control/joystick/x");
-  mqtt.registerTopic<double>("control/joystick/y");
-  debug.println("(setup)", "end");
+  mqtt.registerTopic<int>("control/slider");
+  mqtt.registerTopic<int>("control/joystick/x");
+  mqtt.registerTopic<int>("control/joystick/y");
 
+  i2cSlave.setRegister(MODEM_STATUS_REG,    modem_status);
+  i2cSlave.setRegister(ESP32_IS_READY_REG,  1);
   i2cSlave.init(ESP32_I2C_ADDR);
+
+  debug.println("(setup)", "end");
 }
 
 void monitoring()
 {
-  std::string heartbeat;
-  mqtt.getLastValue("esp/watchdog/heartbeat", heartbeat);
-  unsigned long last_heartbeat = 0;
-  if (!heartbeat.empty())
-    last_heartbeat = std::stoi(heartbeat);
-  unsigned long error_time = millis() - last_heartbeat;
+  uint64_t heartbeat;
+  mqtt.getLastValue<uint64_t>("robot/heartbeat", heartbeat);
+  unsigned long error_time = millis() - heartbeat;
   debug.println("MonitoringTimer", error_time);
-  mqtt.publish("esp/watchdog/heartbeat", std::to_string(millis()));
+  mqtt.publish("robot/heartbeat", std::to_string(millis()));
+
+  bool status = error_time < WATCHDOG_TIMEOUT;
+  /*
+  0: Error
+  1: OK
+  */
+
+  i2cSlave.setRegister(MODEM_HEARTBEAT_STATUS_REG, status);
 }
 
 void loop() 
@@ -46,14 +64,20 @@ void loop()
 
   mqtt.mqttLoop();
 
-  double x, y;
-  mqtt.getLastValue("control/joystick/x", x);
-  mqtt.getLastValue("control/joystick/y", y);
-  i2cSlave.setRegister(MODEM_JOYSTICK_X_REG, int(x));
-  i2cSlave.setRegister(MODEM_JOYSTICK_Y_REG, int(y));
-  debug.println("X: ",  int(x), " Y: ", int(y));
+  int x, y, slider;
+  bool startStop;
 
-  if (millis() - last_monitoring > 1000)
+  mqtt.getLastValue<int>("control/joystick/x", x);
+  mqtt.getLastValue<int>("control/joystick/y", y);
+  mqtt.getLastValue<int>("control/slider", slider);
+  mqtt.getLastValue<bool>("control/startStop", startStop);
+
+  i2cSlave.setRegister(MODEM_JOYSTICK_X_REG,  int(x));
+  i2cSlave.setRegister(MODEM_JOYSTICK_Y_REG,  int(y));
+  i2cSlave.setRegister(MODEM_SLIDER_REG,      int(slider));
+  i2cSlave.setRegister(MODEM_START_STOP_REG,  startStop);
+
+  if (millis() - last_monitoring > WATCHDOG_INTERVAL)
   {
     monitoring();
     last_monitoring = millis();
