@@ -64,8 +64,10 @@ void loop()
 
   mqtt.mqttLoop();
 
-  int x, y, slider;
-  bool startStop;
+  int x = 0;
+  int y = 0;
+  int slider = 0;
+  bool startStop = false;
 
   mqtt.getLastValue<int>("control/joystick/x", x);
   mqtt.getLastValue<int>("control/joystick/y", y);
@@ -77,11 +79,14 @@ void loop()
   i2cSlave.setRegister(MODEM_SLIDER_REG,      int(slider));
   i2cSlave.setRegister(MODEM_START_STOP_REG,  startStop);
 
+  int gnss_status = i2cSlave.getRegister(GNSS_STATUS_REG);
+
   if (millis() - last_monitoring > WATCHDOG_INTERVAL)
   {
     monitoring();
     last_monitoring = millis();
+    debug.println("X: ", x, "Y: ", y, "s: ", slider, "on: ", startStop, "GNSS: ", gnss_status);
   }
 
-  debug.println("Loop take", millis() - now);
+  // debug.println("Loop take", millis() - now);
 }
