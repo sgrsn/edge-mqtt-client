@@ -3,7 +3,7 @@
 #include <Wire.h>
 
 // レジスタの数
-#define NUM_REGISTERS 8
+#define NUM_REGISTERS 16
 #define i2c_data_type_t int
 #define I2C_DATA_SIZE sizeof(i2c_data_type_t)
 

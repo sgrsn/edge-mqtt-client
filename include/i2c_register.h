@@ -12,3 +12,5 @@
 #define MODEM_START_STOP_REG        5
 #define MODEM_HEARTBEAT_STATUS_REG  6
 #define GNSS_STATUS_REG             7
+#define LOGGING_STATUS_REG          8
+#define TEENSY41_STATUS_REG         9
