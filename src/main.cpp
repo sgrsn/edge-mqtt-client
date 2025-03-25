@@ -11,7 +11,6 @@ DumpServer debug;
 HardwareSerial serial_(0);
 MqttClient mqtt(serial_, APN, GPRS_USER, GPRS_PASS, BROKER, PORT, CLIENT_ID, USERNAME, PASSWORD);
 I2CSlave i2cSlave;
-int gnss_status = 0;
 int teensy41_status = 0;
 
 auto watchdog_timer = timer_create_default();
@@ -23,6 +22,8 @@ const uint16_t WATCHDOG_INTERVAL = 800;
 const uint16_t WATCHDOG_TIMEOUT = 2000;
 const uint16_t MQTT_INTERVAL = 10;
 const uint16_t GNSS_NOTIFY_INTERVAL = 5000;
+
+EdgeStatus edgeStatus;
 
 bool monitoring(void *)
 {
@@ -41,7 +42,7 @@ bool monitoring(void *)
   i2cSlave.setRegister(MODEM_HEARTBEAT_STATUS_REG, status);
 
   // teensyのステータスを定期的にリセット
-  teensy41_status = -1;
+  edgeStatus = 0;
 
   static uint32_t last = 0;
   debug.println("monitoring past: ", millis() - last);
@@ -72,8 +73,7 @@ bool mqttLoop(void *)
   i2cSlave.setRegister(MODEM_START_STOP_REG,  startStop);
   i2cSlave.setRegister(LOGGING_STATUS_REG,    logging);
 
-  gnss_status = i2cSlave.getRegister(GNSS_STATUS_REG);
-  teensy41_status = i2cSlave.getRegister(TEENSY41_STATUS_REG);
+  edgeStatus = i2cSlave.getRegister(TEENSY41_STATUS_REG);
 
   return true;
 }
@@ -97,7 +97,6 @@ void setup() {
   mqtt.registerTopic<int>("control/joystick/x");
   mqtt.registerTopic<int>("control/joystick/y");
   mqtt.registerTopic<bool>("logging/startStop");
-  mqtt.registerTopic<int>("gnss/status");
   mqtt.registerTopic<int>("teensy4.1/status");
 
   i2cSlave.setRegister(MODEM_STATUS_REG,    modem_status);
@@ -107,8 +106,7 @@ void setup() {
   watchdog_timer.every(WATCHDOG_INTERVAL, monitoring);
   mqtt_timer.every(MQTT_INTERVAL, mqttLoop);
   notify_timer.every(GNSS_NOTIFY_INTERVAL, [](void *) {
-    mqtt.publish("gnss/status", std::to_string(gnss_status));
-    mqtt.publish("teensy4.1/status", std::to_string(teensy41_status));
+    mqtt.publish("teensy4.1/status", std::to_string(edgeStatus));
     return true;
   });
 

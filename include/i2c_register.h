@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 /*I2C slave address*/
 #define ESP32_I2C_ADDR 0x08
 
@@ -14,3 +16,29 @@
 #define GNSS_STATUS_REG             7
 #define LOGGING_STATUS_REG          8
 #define TEENSY41_STATUS_REG         9
+
+struct EdgeStatus
+{
+  uint8_t vectornav  : 2 = 0;
+  uint8_t sdcard     : 2 = 0;
+  uint8_t gnss_fix   : 2 = 0;
+  operator int() const
+  {
+    uint8_t result;
+    std::memcpy(&result, this, sizeof(EdgeStatus));
+    return result;
+  }
+  EdgeStatus& operator=(const uint8_t& other)
+  {
+    std::memcpy(this, &other, sizeof(EdgeStatus));
+    return *this;
+  }
+};
+
+enum ErrorCode
+{
+  NO_ERROR  = 0,
+  SUCCESS   = 1,
+  FAILED    = 2,
+  TIMEOUT   = 3,
+};
